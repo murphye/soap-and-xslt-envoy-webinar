@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+                   xmlns="http://www.w3.org/2005/xpath-functions">
+   <SOAP-ENV:Header/>
+   <SOAP-ENV:Body>
+      <petstore xmlns="http://petstore.solo.io">
+         <pet>
+            <pet-id>1</pet-id>
+            <pet-type>DOG</pet-type>
+            <pet-status>Pet is available</pet-status>
+            <pet-available/>
+         </pet>
+      </petstore>
+   </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>

@@ -133,7 +133,7 @@ spec:
                                       </pet>
                                   </xsl:template>
                               </xsl:stylesheet>
-                            # Response date is coming from petstore as JSON, needs to be handled accordingly
                             nonXmlTransform: true
-                            # Set the response type to be XML
                             setContentType: text/xml
+
+                            
