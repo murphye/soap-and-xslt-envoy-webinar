@@ -132,3 +132,9 @@ kubectl apply -f rate-limiting.yaml
 kubectl apply -f virtualservice.yaml
 ```
 
+### Run the Query
+Run it several times to see the change in upstream. Run it 15 times to hit the rate limiter.
+
+```
+curl -X POST -i $(glooctl proxy url)/soap -H "Content-Type: text/xml" -d @search-petstore.xml
+```
