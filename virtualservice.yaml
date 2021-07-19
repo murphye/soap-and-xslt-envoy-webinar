@@ -1,0 +1,139 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: default
+  namespace: gloo-system
+spec:
+  displayName: default
+  virtualHost:
+    domains:
+    - '*'
+    options:
+      rateLimitConfigs:
+        # Reference to the rate limiting config
+        # Reload using `curl` 10 times to get `429` response back
+        refs:
+        - name: global-limit
+          namespace: gloo-system
+    routes:
+
+      - matchers:
+        # Shortcut to the SOAP service (get all pets)
+        # curl -X POST -i $(glooctl proxy url)/oldsoap -H "Content-Type: text/xml" -d @search-petstore.xml
+        - methods:
+          - POST
+          prefix: /oldsoap
+        options:
+          prefixRewrite: /soap
+        routeAction:
+          single:
+            upstream:
+              name: petstore-petstore-soap-service-8080
+              namespace: gloo-system
+
+      - matchers:
+        # Shortcut to the REST service (get all pets)
+        # curl -i $(glooctl proxy url)/newrest
+        - methods:
+          - GET
+          prefix: /newrest
+        options:
+          prefixRewrite: /api/pets
+        routeAction:
+          single:
+            upstream:
+              name: petstore-petstore-rest-service-8080
+              namespace: gloo-system
+
+      - matchers:
+        # Canary deployment of REST service to replace SOAP service (get all pets)
+        # curl -X POST -i $(glooctl proxy url)/soap -H "Content-Type: text/xml" -d @search-petstore.xml
+        # Refresh to see that an `upstream` header is added for the SOAP upstream. REST service does not.
+        # 70% of responses will have the `upstream` header (SOAP upstream), 30% do not (REST upstream)
+        - methods:
+          - POST
+          prefix: /soap
+        routeAction:
+          multi:
+            destinations:
+            # 70% of requests to go the SOAP upstream service
+            - weight: 70
+              destination:
+                upstream:
+                  name: petstore-petstore-soap-service-8080 
+                  namespace: gloo-system
+              options:
+                transformations:
+                  responseTransformation:
+                    transformationTemplate:
+                      headers:
+                        "upstream": # Add header so we can differentiate the HTTP responses
+                          text: "petstore-petstore-soap-service-8080"
+                      parseBodyBehavior: DontParse
+            # 30% of requests to go the REST upstream service
+            - weight: 30
+              destination:
+                upstream:
+                  name: petstore-petstore-rest-service-8080
+                  namespace: gloo-system
+              options:
+                stagedTransformations:
+                  regular:
+                    requestTransforms:
+                      - requestTransformation:
+                          transformationTemplate:
+                            headers:
+                              # Rewrite the path using the `:path" pseudo-header
+                              ":path":
+                                text: /api/pets
+                              # Change to `GET` because we are getting data from REST endpoint
+                              ":method":
+                                text: GET
+                              "Content-Type":
+                                text: "application/json"
+                            # Body of request is XML, so don't try to parse it
+                            parseBodyBehavior: DontParse
+                    responseTransforms:
+                      # Handle 429 response correctly with a simple error message (Don't try to run XSLT)
+                      - matchers:
+                          - name: ':status'
+                            value: '429'
+                        responseTransformation:
+                          transformationTemplate:
+                            body: 
+                              text: Too Many Requests
+                      - responseTransformation:
+                          xsltTransformation:
+                            xslt: |
+                              <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/2005/xpath-functions" version="3.0">
+                                  <xsl:output indent="yes" />
+                                  <xsl:template match="/">
+                                      <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+                                          <SOAP-ENV:Header>
+                                            <!-- Here for demonstration purposes -->
+                                            <upstream>petstore-petstore-rest-service-8080</upstream>
+                                          </SOAP-ENV:Header>
+                                          <SOAP-ENV:Body>
+                                              <petstore xmlns="http://petstore.solo.io">
+                                                  <xsl:apply-templates select="json-to-xml(.)/*"/>
+                                              </petstore>
+                                          </SOAP-ENV:Body>
+                                      </SOAP-ENV:Envelope>
+                                  </xsl:template>
+                                  <xsl:template match="map" xpath-default-namespace="http://www.w3.org/2005/xpath-functions">
+                                      <pet xmlns="http://petstore.solo.io">
+                                          <pet-id><xsl:value-of select="number[@key='id']"/></pet-id>
+                                          <pet-type><xsl:value-of select="upper-case(string[@key='name'])"/></pet-type>
+                                          <pet-status>Pet is <xsl:value-of select="string[@key='status']"/></pet-status>
+                                          <xsl:choose>
+                                              <xsl:when test="string[@key='status'] = 'available'">
+                                                  <pet-available/>
+                                              </xsl:when>
+                                          </xsl:choose>
+                                      </pet>
+                                  </xsl:template>
+                              </xsl:stylesheet>
+                            # Response date is coming from petstore as JSON, needs to be handled accordingly
+                            nonXmlTransform: true
+                            # Set the response type to be XML
+                            setContentType: text/xml
