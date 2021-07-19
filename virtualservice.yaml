@@ -11,7 +11,7 @@ spec:
     options:
       rateLimitConfigs:
         # Reference to the rate limiting config
-        # Reload using `curl` 10 times to get `429` response back
+        # Reload using `curl` 15 times to get `429` response back
         refs:
         - name: global-limit
           namespace: gloo-system

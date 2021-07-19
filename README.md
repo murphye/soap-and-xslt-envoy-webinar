@@ -5,7 +5,7 @@ This README assumed that you have Gloo Edge Enterprise 1.8 installed. If not, pl
 * https://docs.solo.io/gloo-edge/latest/installation/enterprise/
 * https://lp.solo.io/request-trial
 
-## Demo #1: XSLT Official Guide
+## Demo #1: XSLT Official Guide (JSON Client to SOAP Service)
 
 https://docs.solo.io/gloo-edge/latest/guides/traffic_management/request_processing/transformations/xslt_transformation/
 
@@ -99,7 +99,7 @@ curl $(glooctl proxy url) -d '{"cityQuery": "south bo"}' -H "SOAPAction:findCity
 ```
 
 
-## Demo #2: SOAP/REST Canary Deployment
+## Demo #2: SOAP/REST Canary Deployment (SOAP Client to SOAP/JSON Service)
 
 ### Create the Pet Store namespace.
 
